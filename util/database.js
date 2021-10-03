@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize').Sequelize;
 
-const sequelize = new Sequelize('node-complete', 'root', 'app_pass$01', {
+const sequelize = new Sequelize('shopping-cart', 'root', 'app_pass$01', {
     dialect: 'mysql',
     host: 'localhost'
 });
