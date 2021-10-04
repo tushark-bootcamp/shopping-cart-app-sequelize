@@ -25,7 +25,9 @@ const CartItem = require('./models/cart-item');
 const {
     resolve
 } = require('path');
-const { hasOne } = require('./models/product');
+const {
+    hasOne
+} = require('./models/product');
 
 
 app.use(bodyParser.urlencoded({
@@ -43,6 +45,8 @@ app.use((req, res, next) => {
         .then(user => {
             // The user stored in request is the sequelized object -- NOT just the javascript object with the field values.
             req.user = user;
+            // getOrCreateCart() is called asynchronously ==> let the cart fetch/creation happen asynchronously
+            getOrCreateCart(user);
             next();
         })
         .catch(err => console.log(err));
@@ -66,17 +70,43 @@ User.belongsTo(UserType, {
     constraints: true,
     onDelete: 'CASCADE'
 });
-UserType.hasOne(User);
+UserType.hasMany(User);
 
 //Cart table has UserId
 Cart.belongsTo(User);
 User.hasOne(Cart);
 
 // CartItem table has CartId and ProductId
-Cart.belongsToMany(Product, {through: CartItem});
+Cart.belongsToMany(Product, {
+    through: CartItem
+});
 
 // //CartItem table has CartId and ProductId
-Product.belongsToMany(Cart, {through: CartItem});
+Product.belongsToMany(Cart, {
+    through: CartItem
+});
+
+
+const getOrCreateCart = (user) => {
+    const promise = new Promise((resolve, reject) => {
+        user.getCart()
+        .then(cart => {
+            if(cart) {
+                resolve(cart);
+            } else {
+                return user.createCart();
+            }
+        })
+        .then(cart => {
+            resolve(cart);
+        })
+        .catch(err => {
+            reject(err);
+            console.log(err);
+        });
+    });
+    return promise;
+}
 
 // Fetches a user and creates one if it doesn't exist with specified uType
 // uType is either 'admin' or 'shopper'
@@ -106,13 +136,16 @@ const fetchUser = (uType) => {
                         if (user) {
                             resolve(user);
                         } else {
-                            user = User.create({
+                            return user = User.create({
                                 name: 'User1',
                                 email: 'user1@email.com',
                                 userTypeId: userType.id
                             });
-                            resolve(user);
+                            
                         }
+                    })
+                    .then(user => {
+                        resolve(user);
                     })
                     .catch(error => {
                         console.log(error);
@@ -139,12 +172,14 @@ const fetchUser = (uType) => {
 
 //sequelize.sync({force:true})
 // sequelize.sync() is only called at the time of starting the server (@npm start) 
-sequelize.sync({force:true})
+sequelize.sync()
     .then(result => {
         return fetchUser('admin');
         //Promise.resolve(user);
     })
-    .then(() => {
+    .then(user => {
+        console.log(user);
+        //return user.createCart();
         app.listen(3000);
     })
     .catch(err => {
@@ -155,3 +190,48 @@ sequelize.sync({force:true})
 // Was getting error something along the lines of .... default value error for the id field in Product table.
 // It was because of incorrect spelling of autoIncrement key in the Product model. 
 // Used {force:true} strategy successfully to resync the sequelize model with my MySQL DB after correcting the spelling.
+
+// The fetchUser2 is an alternate style, the key difference in this implementation is retrieving the user from the 
+// usertype object using sequelize association.
+const fetchUser2 = (uType) => {
+    const promise = new Promise((resolve, reject) => {
+        UserType.findOne({
+                where: {
+                    userType: uType
+                }
+            })
+            .then(userType => {
+                if (!userType) {
+                    return UserType.create({
+                        userType: uType
+                    });
+                } else {
+                    return userType;
+                }
+            })
+            .then(userType => {
+                // Check what's the correct method to restrict the results to a single record
+                return userType.getUser();
+            })
+            .then(user => {
+                if (user) {
+                    resolve(user);
+                } else {
+                    // Check if we can use resolve here instead of returning
+                    return User.create({
+                        name: 'User1',
+                        email: 'user1@email.com',
+                        userTypeId: userType.id
+                    });
+                }
+            })
+            .then(user => {
+                resolve(user);
+            })
+            .catch(err => {
+                console.log(err);
+                reject(err);
+            })
+    });
+    return promise;
+}

@@ -71,43 +71,70 @@ exports.getIndex = (req, res, next) => {
 }
 
 exports.getCart = (req, res, next) => {
-    Cart.getCart((cart) => {
-        if (cart) {
-            Product.fetchAll(products => {
-                const cartProducts = [];
-                for (product of products) {
-                    const cartProdData = cart.products.find(prod => prod.id === product.id);
-                    if (cartProdData) {
-                        cartProducts.push({
-                            productData: product,
-                            qty: cartProdData.qty
-                        });
-                    }
-                }
-                res.render('shop/cart', {
-                    pageTitle: 'Your Cart',
-                    path: '/cart',
-                    cartProds: cartProducts
-                });
-            });
-        } else {
+    req.user.getCart()
+        .then(cart => {
+            console.log('Cart objects ===>');
+            console.log(cart);
+            return cart.getProducts();
+        })
+        .then(products => {
+            if (!products) {
+                products = [];
+            }
             res.render('shop/cart', {
                 pageTitle: 'Your Cart',
                 path: '/cart',
-                cartProds: []
+                cartProds: products
             });
-        }
-
-    });
+        })
+        .catch(err => {
+            console.log(err);
+        });
 }
 
-exports.postCart = (req, res, next) => {
-    const prodId = req.body.productId;
-    Product.findById(prodId, (product) => {
-        Cart.addProduct(prodId, product.price);
-    });
-    console.log(prodId);
-    res.redirect('/cart');
+exports.addToCart = (req, res, next) => {
+    const prodGId = req.body.productId;
+    console.log(prodGId);
+    let fetchedCart;
+    let newQty = 1;
+    // Cart is fetched/created in the app.js middleware
+    req.user.getCart()
+        .then(cart => {
+            //const products =
+            fetchedCart = cart;
+            return cart.getProducts({
+                where: {
+                    id: prodGId
+                }
+            });
+        })
+        .then(products => {
+            // Sequelize sends empty array never a null if no records are found 
+            let product;
+            if (products.length > 0) {
+                product = products[0];
+            }
+            if (product) {
+                const oldQty = product.cartItem.quantity;
+                newQty = oldQty + 1;
+                return product;
+            } else {
+                return Product.findByPk(prodGId);
+            }
+        })
+        .then(product => {
+            return fetchedCart.addProduct(product, {
+                through: {
+                    quantity: newQty
+                }
+            });
+        })
+        .then(() => {
+            res.redirect('/cart');
+        })
+        .catch(err => {
+            console.log(err);
+        });
 }
 
 exports.postCartDeleteItem = (req, res, next) => {
