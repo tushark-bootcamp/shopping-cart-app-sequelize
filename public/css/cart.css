@@ -22,3 +22,10 @@
   margin: 0;
 }
 
+.icon {
+  background: url('../img/cart.png');
+  height: 40px;
+  width: 40px;
+  display: block;
+  /* Other styles here */
+}
