@@ -1,15 +1,17 @@
 <%- include('../includes/head.ejs') %>
+    <link rel="stylesheet" href="/css/cart.css">
 </head>
 <body>
     <%- include('../includes/navigation.ejs') %>
     <main>
         <% if(cartProds.length > 0) { %>
-            <ul>
+            <ul class="cart__item-list">
                 <% cartProds.forEach(cartProductData => { %>
-                    <li>
-                        <p><%= cartProductData.title %> (<%= cartProductData.cartItem.quantity %>)</p>
+                    <li class="cart__item">
+                        <h1><%= cartProductData.title %></h1>
+                            <h2>(<%= cartProductData.cartItem.quantity %>)</h2> 
                         <form action="/cart-delete-item" method="POST">
-                            <button class="btn" type="submit">Remove</button>
+                            <button class="btn danger" type="submit">Remove</button>
                             <input
                                 type="hidden"
                                 value="<%= cartProductData.id%>"
