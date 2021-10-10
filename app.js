@@ -22,6 +22,9 @@ const User = require('./models/user');
 const UserType = require('./models/user-type');
 const Cart = require('./models/cart');
 const CartItem = require('./models/cart-item');
+const Order = require('./models/order');
+const OrderItem = require('./models/order-item');
+
 const {
     resolve
 } = require('path');
@@ -80,12 +83,20 @@ User.hasOne(Cart);
 Cart.belongsToMany(Product, {
     through: CartItem
 });
-
 // //CartItem table has CartId and ProductId
 Product.belongsToMany(Cart, {
     through: CartItem
 });
 
+// Order table has userId
+Order.belongsTo(User);
+User.hasMany(Order);
+
+// OrderItem table has orderId and productId
+Order.belongsToMany(Product, {through: OrderItem});
+
+//// OrderItem table has orderId and productId
+Product.belongsToMany(Order, {through: OrderItem});
 
 const getOrCreateCart = (user) => {
     const promise = new Promise((resolve, reject) => {
